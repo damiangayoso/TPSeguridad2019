@@ -13,4 +13,5 @@ public interface ServicioUsuario {
 	public List<Usuario> obtenerUsuarios();
 	public List<Registro> obtenerRegistrosUsuarios(String email);
 	public void switchUsuario(String email);
+	boolean autentificarUsuario(String auth,String fecha);
 }

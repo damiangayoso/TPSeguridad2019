@@ -1,5 +1,8 @@
 package ar.edu.unlam.tpseguridad.controladores;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -21,13 +24,18 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ar.edu.unlam.tpseguridad.modelo.ClaveDTO;
 import ar.edu.unlam.tpseguridad.modelo.Registro;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
+import ar.edu.unlam.tpseguridad.modelo.UsuarioDTO;
 import ar.edu.unlam.tpseguridad.servicios.ServicioLogin;
 import ar.edu.unlam.tpseguridad.servicios.ServicioUsuario;
+import ar.edu.unlam.tpseguridad.servicios.ServicioValidacionV2;
 
 @Controller
 public class ControladorUsuario {
 	@Inject
 	private ServicioUsuario servicioUsuario;
+	
+	@Inject
+	private ServicioValidacionV2 servicioValidacionV2;
 	
 	@Inject
 	private ServicioLogin servicioLogin;
@@ -77,6 +85,11 @@ public class ControladorUsuario {
 		Long id = (Long) request.getSession().getAttribute("ID");
 		
 		boolean resultado = servicioUsuario.validarCambiarPassword(id, clave.getOldPass(), clave.getNewPass());
+		
+		if(!servicioValidacionV2.passwordVerificar(clave.getNewPass())) {
+			model.put("error", "Contraseña solo puede contener [a-z A-Z 0-9].");
+			return new ModelAndView("cambiarPassword", model);
+		}
 		
 		if(resultado) {
 			return new ModelAndView("home", model);
@@ -172,5 +185,26 @@ public class ControladorUsuario {
 		else {
 			return new ModelAndView("/login", modelo);
 		}
+	}
+	
+	@RequestMapping(path="/autentificarUsuario/{auth}", method = RequestMethod.GET)
+	public ModelAndView autentificarUsuario(@PathVariable String auth,HttpServletRequest request) {
+		ModelMap modelo = new ModelMap();	
+		UsuarioDTO usuario = new UsuarioDTO();
+		modelo.put("usuario", usuario);
+		
+		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		String fecha = dateFormat.format(new Date());
+
+		boolean resultado = servicioUsuario.autentificarUsuario(auth,fecha);
+	
+		if(resultado) {
+
+			return new ModelAndView("redirect:/login", modelo);
+		}else {
+
+			return new ModelAndView("/error", modelo);
+		}
+
 	}
 }

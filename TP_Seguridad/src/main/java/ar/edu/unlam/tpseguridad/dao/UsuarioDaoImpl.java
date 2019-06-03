@@ -1,14 +1,20 @@
 package ar.edu.unlam.tpseguridad.dao;
 
+import org.apache.commons.codec.binary.Base64;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.criterion.Restrictions;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Base64Utils;
 
+import ar.edu.unlam.tpseguridad.modelo.Autentificacion;
 import ar.edu.unlam.tpseguridad.modelo.Registro;
+import ar.edu.unlam.tpseguridad.modelo.SaltUsuario;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
 
+import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -26,19 +32,19 @@ public class UsuarioDaoImpl implements UsuarioDao {
 	@Inject
     private SessionFactory sessionFactory;
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public Usuario consultarUsuario(Usuario usuario) {
 
-		// Se obtiene la sesion asociada a la transaccion iniciada en el servicio que invoca a este metodo y se crea un criterio
-		// de busqueda de Usuario donde el email y password sean iguales a los del objeto recibido como parametro
-		// uniqueResult da error si se encuentran más de un resultado en la busqueda.
 		final Session session = sessionFactory.getCurrentSession();
 		return (Usuario) session.createCriteria(Usuario.class)
 				.add(Restrictions.eq("email", usuario.getEmail()))
-				.add(Restrictions.eq("password", usuario.getPassword()))
 				.uniqueResult();
 	}
 	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public void cargarUsuario() {
 		final Session session = sessionFactory.getCurrentSession();	
@@ -111,12 +117,79 @@ public class UsuarioDaoImpl implements UsuarioDao {
 				}
 	}
 	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public void crearUsuario(Usuario usuario) {
 		final Session session = sessionFactory.getCurrentSession();	
 		usuario.setRol("Usuario");
-		usuario.setEstado("Habilitado");
+		usuario.setEstado("Deshabilitado");
 		session.save(usuario);
+		String passHashed = "";
+		Usuario usuarioHashed = new Usuario();
+		
+		usuarioHashed = (Usuario) session.createCriteria(Usuario.class)
+				.add(Restrictions.eq("email", usuario.getEmail()))
+				.uniqueResult();
+		
+		//GENERO Y GUARDO EL SALT DEL USUARIO
+	
+		byte[] saltBytes = SaltHashedPassword.getNextSalt();
+		String salt = SaltHashedPassword.convertirSalt(saltBytes);
+		
+		SaltUsuario saltUsuario = new SaltUsuario();
+		
+		saltUsuario.setIdUsuario(usuarioHashed.getId());
+		saltUsuario.setSalt(salt);
+		
+		session.save(saltUsuario);
+
+		//Comienzo la creacion del password Salt Hashed
+		try {
+			passHashed = SaltHashedPassword.generarHash(usuarioHashed,saltBytes);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		usuarioHashed.setPassword(passHashed);
+				
+		session.update(usuarioHashed);
+		
+		//GENERO REGISTRO DE AUTENTIFICACION
+		
+		Autentificacion auth = new Autentificacion();
+		auth.setEmail(usuarioHashed.getEmail());
+		auth.setEstado("NO ACTIVADO");
+		
+		DateFormat dateFormatAuth = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		String fechaAuth = dateFormatAuth.format(new Date());
+		
+		auth.setFecha(fechaAuth);
+		
+		Usuario userAuth = new Usuario();
+		userAuth.setEmail(usuario.getEmail());
+		userAuth.setPassword(usuario.getEmail());
+		String authHash = "";
+		
+		try {
+			authHash = SaltHashedPassword.generarHash(userAuth, saltBytes);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		auth.setAutentificador(authHash);
+		
+		session.save(auth);
+		
+		//GENERO EL EMAIL PARA HABILITAR AL USUARIO
+		
+		String destinatario = usuario.getEmail();
+		String asunto = "ACTIVACION DE CUENTA!";
+		String cuerpo = "Por favor ingrese a: http://localhost:8080/TP_Seguridad/autentificarUsuario/"+auth.getAutentificador();
+		MensajeriaEmail.EnviarEmail(destinatario, asunto, cuerpo);
+		
+		//PARTE QUE GUARDA EN EL LOG LA CREACION DEL USUARIO
 		
 		Usuario regUser = new Usuario();
 		regUser = (Usuario) session.createCriteria(Usuario.class)
@@ -136,7 +209,9 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		session.save(registro);
 		
 	}
-	
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public void guardarTexto(Long id,String texto) {
 		
@@ -163,7 +238,9 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		session.save(registro);
 
 	}
-	
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public boolean validarCambiarPassword(Long id,String oldPass,String newPass) {
 		
@@ -198,7 +275,9 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		}
 		return false;
 	}
-	
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public List<Registro> obtenerRegistros(Long id) {
 	
@@ -209,7 +288,9 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		
 		return resultado;
 	}
-	
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public List<Usuario> obtenerUsuarios() {
 	
@@ -221,6 +302,8 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		return resultado;
 	}
 	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public List<Registro> obtenerRegistrosUsuarios(String email) {
 	
@@ -237,6 +320,8 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		return resultado;
 	}
 	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public void switchUsuario(String email) {
 		
@@ -256,7 +341,9 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		}
 
 	}
-	
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	@Override
 	public Usuario recuperarPassConsulta(String email) {
 		final Session session = sessionFactory.getCurrentSession();	
@@ -266,5 +353,88 @@ public class UsuarioDaoImpl implements UsuarioDao {
 				.uniqueResult();
 
 		return usuario;
+	}
+	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	@Override
+	public Usuario consultarUsuarioLogin(Usuario usuario){
+		final Session session = sessionFactory.getCurrentSession();	
+		Base64 codec = new Base64();
+		Usuario usuarioTest = (Usuario) session.createCriteria(Usuario.class)
+		.add(Restrictions.eq("email", usuario.getEmail()))
+		.uniqueResult();
+		
+		SaltUsuario saltUsuario = (SaltUsuario) session.createCriteria(SaltUsuario.class)
+				.add(Restrictions.eq("idUsuario", usuarioTest.getId()))
+				.uniqueResult();
+		String salt = saltUsuario.getSalt();
+		String HashPass = "";
+
+		byte[] saltPass = Base64Utils.decodeFromString(salt);
+
+		try {
+			HashPass = SaltHashedPassword.generarHash(usuario, saltPass);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		if(usuarioTest.getPassword().equals(HashPass)) {
+			return usuarioTest;
+		}
+		
+		return null;
+	}
+	
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	@Override
+	public boolean autentificarUsuario(String auth,String fecha) {
+		final Session session = sessionFactory.getCurrentSession();
+		Autentificacion autentificacion = (Autentificacion) session.createCriteria(Autentificacion.class)
+				.add(Restrictions.eq("autentificador", auth))
+				.uniqueResult();	
+		
+		SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		
+		Date d1 = null;
+		Date d2 = null;
+		
+		try {
+			d1= format.parse(fecha);
+			d2= format.parse(autentificacion.getFecha());
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		long diff = d2.getTime() - d1.getTime();
+		long diffSeconds = diff / 1000 % 60;         
+		long diffMinutes = diff / (60 * 1000) % 60;         
+		long diffHours = diff / (60 * 60 * 1000);
+		
+		System.out.println("Time in seconds: " + diffSeconds + " seconds.");         
+		System.out.println("Time in minutes: " + diffMinutes + " minutes.");         
+		System.out.println("Time in hours: " + diffHours + " hours."); 
+		
+		if(diffHours >= 1) {
+
+			return false;
+		}
+		else {
+
+			autentificacion.setEstado("Activado");
+			session.update(autentificacion);
+			
+			Usuario user = (Usuario) session.createCriteria(Usuario.class)
+					.add(Restrictions.eq("email", autentificacion.getEmail()))
+					.uniqueResult();
+			
+			user.setEstado("Habilitado");
+			session.update(user);
+
+			return true;
+		}
+		
 	}
 }

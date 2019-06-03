@@ -1,5 +1,7 @@
 package ar.edu.unlam.tpseguridad.controladores;
 
+import java.io.IOException;
+
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 
@@ -13,8 +15,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 
+import ar.edu.unlam.tpseguridad.dao.VerifyRecaptchaImpl;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
+import ar.edu.unlam.tpseguridad.modelo.UsuarioDTO;
 import ar.edu.unlam.tpseguridad.servicios.ServicioLogin;
+import ar.edu.unlam.tpseguridad.servicios.ServicioValidacionV2;
 
 @Controller
 public class ControladorLogin {
@@ -22,23 +27,45 @@ public class ControladorLogin {
 	@Inject
 	private ServicioLogin servicioLogin;
 	
+	@Inject
+	private ServicioValidacionV2 servicioValidacionV2;
+	
 	@RequestMapping("/login")
 	public ModelAndView irALogin() {
-		
+		System.out.println("ENTRO LOGIN!!!!!!!!!!!");
+
 		servicioLogin.cargarUsuario();
 		ModelMap modelo = new ModelMap();
 
-		Usuario usuario = new Usuario();
+		UsuarioDTO usuario = new UsuarioDTO();
 		modelo.put("usuario", usuario);
+		System.out.println("VA A LA VISTA!!!!!!!!!!!");
 
 		return new ModelAndView("login", modelo);
 	}
 
 	@RequestMapping(path = "/validar-login", method = RequestMethod.POST)
-	public ModelAndView validarLogin(@ModelAttribute("usuario") Usuario usuario, HttpServletRequest request) {
+	public ModelAndView validarLogin(@ModelAttribute("usuario") UsuarioDTO usuarioDTO, HttpServletRequest request) {
 		ModelMap model = new ModelMap();
-
-		Usuario usuarioBuscado = servicioLogin.consultarUsuario(usuario);
+		
+		Usuario usuario = new Usuario();
+		usuario.setEmail(usuarioDTO.getEmail());
+		usuario.setPassword(usuarioDTO.getPassword());
+		usuario.setPregunta(usuarioDTO.getPregunta());
+		usuario.setRespuesta(usuarioDTO.getRespuesta());
+		
+		try {
+			if(!VerifyRecaptchaImpl.verify(usuarioDTO.getGrecaptcharesponse())) {
+				model.put("error", "ERROR CON EL RECAPTCHA! ES UN BOT!.");
+				return new ModelAndView("login", model);
+			}
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		Usuario usuarioBuscado = servicioLogin.consultarUsuarioLogin(usuario);
 		if (usuarioBuscado != null) {
 			
 			if(usuarioBuscado.getEstado().equals("Habilitado")) {
@@ -73,7 +100,7 @@ public class ControladorLogin {
 	public ModelAndView crearCuenta() {
 		ModelMap modelo = new ModelMap();
 
-		Usuario usuario = new Usuario();
+		UsuarioDTO usuario = new UsuarioDTO();
 		modelo.put("usuario", usuario);
 
 		return new ModelAndView("crearCuenta", modelo);
@@ -81,8 +108,29 @@ public class ControladorLogin {
 	}
 	
 	@RequestMapping(path = "/validar-crearCuenta", method = RequestMethod.POST)
-	public ModelAndView validarCrearCuenta(@ModelAttribute("usuario") Usuario usuario) {
+	public ModelAndView validarCrearCuenta(@ModelAttribute("usuario") UsuarioDTO usuarioDTO) {
 		ModelMap model = new ModelMap();
+		
+		Usuario usuario = new Usuario();
+		usuario.setEmail(usuarioDTO.getEmail());
+		usuario.setPassword(usuarioDTO.getPassword());
+		usuario.setPregunta(usuarioDTO.getPregunta());
+		usuario.setRespuesta(usuarioDTO.getRespuesta());
+		
+		try {
+			if(!VerifyRecaptchaImpl.verify(usuarioDTO.getGrecaptcharesponse())) {
+				model.put("error", "ERROR CON EL RECAPTCHA! ES UN BOT!.");
+				return new ModelAndView("login", model);
+			}		
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		if(!servicioValidacionV2.passwordVerificar(usuario.getPassword())) {
+			model.put("error", "Contraseña solo puede contener [a-z A-Z 0-9].");
+			return new ModelAndView("crearCuenta", model);
+		}
 		
 		if(usuario.getEmail() == "" || usuario.getPassword() == "") {
 			model.put("error", "Usuario o Contraseña estan Vacios.");

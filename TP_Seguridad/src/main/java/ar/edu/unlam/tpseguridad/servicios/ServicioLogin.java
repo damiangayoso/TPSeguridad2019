@@ -9,4 +9,5 @@ public interface ServicioLogin {
 	void cargarUsuario();
 	void crearUsuario(Usuario usuario);
 	Usuario recuperarPassConsulta(String email);
+	Usuario consultarUsuarioLogin(Usuario usuario);
 }

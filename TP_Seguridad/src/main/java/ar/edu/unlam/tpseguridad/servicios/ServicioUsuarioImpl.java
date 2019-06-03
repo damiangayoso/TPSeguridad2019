@@ -46,4 +46,9 @@ public class ServicioUsuarioImpl implements ServicioUsuario {
 	public void switchUsuario(String email) {
 		servicioUsuarioDao.switchUsuario(email);
 	}
+	
+	@Override
+	public boolean autentificarUsuario(String auth,String fecha) {
+		return servicioUsuarioDao.autentificarUsuario(auth, fecha);
+	}
 }

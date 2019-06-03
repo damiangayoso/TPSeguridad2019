@@ -18,4 +18,6 @@ public interface UsuarioDao {
 	List<Registro> obtenerRegistrosUsuarios(String email);
 	void switchUsuario(String email);
 	Usuario recuperarPassConsulta(String email);
+	Usuario consultarUsuarioLogin(Usuario usuario);
+	boolean autentificarUsuario(String auth,String fecha);
 }

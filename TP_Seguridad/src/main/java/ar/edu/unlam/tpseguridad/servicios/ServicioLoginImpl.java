@@ -40,4 +40,8 @@ public class ServicioLoginImpl implements ServicioLogin {
 	public Usuario recuperarPassConsulta(String email) {
 		return servicioLoginDao.recuperarPassConsulta(email);
 	}
+	
+	public Usuario consultarUsuarioLogin(Usuario usuario) {
+		return servicioLoginDao.consultarUsuarioLogin(usuario);
+	}
 }
