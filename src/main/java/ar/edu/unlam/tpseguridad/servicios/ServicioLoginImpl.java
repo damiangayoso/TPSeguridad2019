@@ -44,4 +44,9 @@ public class ServicioLoginImpl implements ServicioLogin {
 	public Usuario consultarUsuarioLogin(Usuario usuario) {
 		return servicioLoginDao.consultarUsuarioLogin(usuario);
 	}
+	
+	@Override
+	public void recuperarClave(Usuario usuario) {
+		servicioLoginDao.recuperarClave(usuario);
+	}
 }

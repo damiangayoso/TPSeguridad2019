@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ar.edu.unlam.tpseguridad.dao.UsuarioDao;
+import ar.edu.unlam.tpseguridad.modelo.Autentificacion;
 import ar.edu.unlam.tpseguridad.modelo.Registro;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
 
@@ -27,6 +28,11 @@ public class ServicioUsuarioImpl implements ServicioUsuario {
 		return servicioUsuarioDao.validarCambiarPassword(id, oldPass, newPass);
 	}
 
+	@Override
+	public boolean validarSetNewPassword(String newPass1, String newPass2) {
+		return servicioUsuarioDao.validarSetNewPassword(newPass1, newPass2);		
+	}
+	
 	@Override
 	public List<Registro> obtenerRegistros(Long id){
 		return servicioUsuarioDao.obtenerRegistros(id);
@@ -51,4 +57,15 @@ public class ServicioUsuarioImpl implements ServicioUsuario {
 	public boolean autentificarUsuario(String auth,String fecha) {
 		return servicioUsuarioDao.autentificarUsuario(auth, fecha);
 	}
+
+	@Override
+	public Autentificacion autentificarSetNewPassword(String auth, String fecha) {
+		return servicioUsuarioDao.autentificarSetNewPassword(auth, fecha);		
+	}
+
+	@Override
+	public void saveNewPassword(Long id, String email, String newPass1) {
+		servicioUsuarioDao.saveNewPassword(id, email, newPass1);		
+	}
+	
 }

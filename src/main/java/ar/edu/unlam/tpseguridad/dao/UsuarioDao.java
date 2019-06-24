@@ -2,6 +2,7 @@ package ar.edu.unlam.tpseguridad.dao;
 
 import java.util.List;
 
+import ar.edu.unlam.tpseguridad.modelo.Autentificacion;
 import ar.edu.unlam.tpseguridad.modelo.Registro;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
 
@@ -20,4 +21,8 @@ public interface UsuarioDao {
 	Usuario recuperarPassConsulta(String email);
 	Usuario consultarUsuarioLogin(Usuario usuario);
 	boolean autentificarUsuario(String auth,String fecha);
+	void recuperarClave(Usuario usuario);
+	boolean validarSetNewPassword(String newPass1, String newPass2);
+	Autentificacion autentificarSetNewPassword(String auth, String fecha);
+	void saveNewPassword(Long id, String email, String newPass1);
 }

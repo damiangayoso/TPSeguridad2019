@@ -18,10 +18,10 @@
 				<form:form action="validar-recuperarPassword" method="POST" modelAttribute="usuario">
 			    	<h3 class="form-signin-heading">Recuperar Password.</h3>
 					<hr class="colorgraph"><br>
-
+					<form:label path="email">Ingrese el email con el que esta registrado</form:label>
 					<form:input path="email" id="email" type="email" class="form-control" />  		  
 					
-					<button class="btn btn-lg btn-primary btn-block" Type="Submit"/>Crear</button>
+					<button class="btn btn-lg btn-primary btn-block" Type="Submit"/>Confirmar</button>
 				</form:form>
 
 				<%--Bloque que es visible si el elemento error no está vacío	--%>

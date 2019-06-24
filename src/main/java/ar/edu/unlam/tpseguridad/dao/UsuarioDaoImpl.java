@@ -132,8 +132,7 @@ public class UsuarioDaoImpl implements UsuarioDao {
 				.add(Restrictions.eq("email", usuario.getEmail()))
 				.uniqueResult();
 		
-		//GENERO Y GUARDO EL SALT DEL USUARIO
-	
+		//GENERO Y GUARDO EL SALT DEL USUARIO	
 		byte[] saltBytes = SaltHashedPassword.getNextSalt();
 		String salt = SaltHashedPassword.convertirSalt(saltBytes);
 		
@@ -147,16 +146,14 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		//Comienzo la creacion del password Salt Hashed
 		try {
 			passHashed = SaltHashedPassword.generarHash(usuarioHashed,saltBytes);
-		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
+		} catch (UnsupportedEncodingException e) {		
 			e.printStackTrace();
 		}
-		usuarioHashed.setPassword(passHashed);
-				
+		
+		usuarioHashed.setPassword(passHashed);				
 		session.update(usuarioHashed);
 		
-		//GENERO REGISTRO DE AUTENTIFICACION
-		
+		//GENERO REGISTRO DE AUTENTIFICACION		
 		Autentificacion auth = new Autentificacion();
 		auth.setEmail(usuarioHashed.getEmail());
 		auth.setEstado("NO ACTIVADO");
@@ -250,7 +247,6 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		usuario = (Usuario) session.createCriteria(Usuario.class)
 				.add(Restrictions.eq("id", id))
 				.uniqueResult();
-
 		
 		if(usuario.getPassword().equals(oldPass)) {
 			if(usuario.getPassword().equals(newPass)) {
@@ -276,6 +272,16 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		return false;
 	}
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
+	
+	@Override
+	public boolean validarSetNewPassword(String newPass1, String newPass2) {
+		if(newPass1.equals(newPass2)) {			
+			return true;
+			}		
+		return false;
+	}
+	
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Override
@@ -365,6 +371,8 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		.add(Restrictions.eq("email", usuario.getEmail()))
 		.uniqueResult();
 		
+		////REVISANDO ACA
+		//Busco saltUsuario
 		SaltUsuario saltUsuario = (SaltUsuario) session.createCriteria(SaltUsuario.class)
 				.add(Restrictions.eq("idUsuario", usuarioTest.getId()))
 				.uniqueResult();
@@ -381,6 +389,8 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		}
 
 		if(usuarioTest.getPassword().equals(HashPass)) {
+			System.out.println(usuarioTest.getPassword());
+			System.out.println(HashPass);
 			return usuarioTest;
 		}
 		
@@ -388,6 +398,7 @@ public class UsuarioDaoImpl implements UsuarioDao {
 	}
 	
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	@Override
 	public boolean autentificarUsuario(String auth,String fecha) {
 		final Session session = sessionFactory.getCurrentSession();
@@ -434,7 +445,197 @@ public class UsuarioDaoImpl implements UsuarioDao {
 			session.update(user);
 
 			return true;
+		}		
+	}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	@Override
+	public void recuperarClave(Usuario usuario) {
+		final Session session = sessionFactory.getCurrentSession();			
+		String passHashed = "";
+		Usuario usuarioHashed = new Usuario();
+						
+		usuarioHashed = (Usuario) session.createCriteria(Usuario.class)
+				.add(Restrictions.eq("email", usuario.getEmail()))
+				.uniqueResult();
+		
+		//GENERO Y GUARDO EL SALT DEL USUARIO
+		byte[] saltBytes = SaltHashedPassword.getNextSalt();
+		String salt = SaltHashedPassword.convertirSalt(saltBytes);
+		
+		SaltUsuario saltUsuario = new SaltUsuario();
+		
+		saltUsuario.setIdUsuario(usuarioHashed.getId());
+		saltUsuario.setSalt(salt);
+		
+		//No lo guardo para que no existan duplicados y rompa en el login al cambiar la clave		
+		//session.save(saltUsuario);
+
+		//Comienzo la creacion del password Salt Hashed
+		try {
+			passHashed = SaltHashedPassword.generarHash(usuarioHashed,saltBytes);
+		} catch (UnsupportedEncodingException e) {		
+			e.printStackTrace();
 		}
 		
+		usuarioHashed.setPassword(passHashed);			
+		session.update(usuarioHashed);
+
+		//GENERO REGISTRO DE AUTENTIFICACION		
+		Autentificacion auth = new Autentificacion();
+		auth.setEmail(usuarioHashed.getEmail());
+		auth.setIdUsuario(usuarioHashed.getId());
+		
+		DateFormat dateFormatAuth = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		String fechaAuth = dateFormatAuth.format(new Date());
+		
+		auth.setFecha(fechaAuth);
+		
+		Usuario userAuth = new Usuario();
+		userAuth.setEmail(usuario.getEmail());
+		userAuth.setPassword(usuario.getEmail());
+		String authHash = "";
+		
+		try {
+			authHash = SaltHashedPassword.generarHash(userAuth, saltBytes);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		auth.setAutentificador(authHash);		
+		session.save(auth);
+				
+		//GENERO EL EMAIL PARA HABILITAR AL USUARIO		
+		String destinatario = usuario.getEmail();
+		String asunto = "Recuperacion de password";
+		String cuerpo = "Por favor ingrese a: http://localhost:8080/TP_Seguridad/autentificarSetNewPassword/"+auth.getAutentificador();
+		MensajeriaEmail.EnviarEmail(destinatario, asunto, cuerpo);		
 	}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
+	
+	@Override
+	public Autentificacion autentificarSetNewPassword(String auth, String fecha) {
+		final Session session = sessionFactory.getCurrentSession();
+		Autentificacion autentificacion = (Autentificacion) session.createCriteria(Autentificacion.class)
+				.add(Restrictions.eq("autentificador", auth))
+				.uniqueResult();	
+		
+		SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		
+		Date d1 = null;
+		Date d2 = null;
+		
+		try {
+			d1= format.parse(fecha);
+			d2= format.parse(autentificacion.getFecha());
+		} catch (ParseException e) {			
+			e.printStackTrace();
+		}
+		
+		long diff = d2.getTime() - d1.getTime();
+		long diffSeconds = diff / 1000 % 60;         
+		long diffMinutes = diff / (60 * 1000) % 60;         
+		long diffHours = diff / (60 * 60 * 1000);
+		
+		System.out.println("Time in seconds: " + diffSeconds + " seconds.");         
+		System.out.println("Time in minutes: " + diffMinutes + " minutes.");         
+		System.out.println("Time in hours: " + diffHours + " hours."); 
+		
+		if(diffHours >= 1) {
+			//return "Invalid";			
+			return autentificacion;
+		}
+		else {
+			//autentificacion.setEstado("Activado");
+			//session.update(autentificacion);
+			
+			Usuario user = (Usuario) session.createCriteria(Usuario.class)
+					.add(Restrictions.eq("email", autentificacion.getEmail()))
+					.uniqueResult();
+			
+			//user.setEstado("Habilitado");
+			//session.update(user);
+			
+			//return autentificacion.getEmail();
+			System.out.println("autentificarSetNewPassword");
+			System.out.println("id:"+autentificacion.getIdUsuario());
+			System.out.println(autentificacion.getEmail());
+			return autentificacion;
+		}
+
+	}
+
+	
+	@Override
+	public void saveNewPassword(Long id, String email, String newPass1) {		
+		final Session session = sessionFactory.getCurrentSession();							
+		Usuario usuario = (Usuario) session.createCriteria(Usuario.class)
+				.add(Restrictions.eq("id", id))
+				.uniqueResult();		
+		
+		usuario.setPassword(newPass1);
+		session.update(usuario);
+									
+		//////////////////////////////////////////////////////////
+		//final Session session = sessionFactory.getCurrentSession();	
+		//usuario.setRol("Usuario");
+		//usuario.setEstado("Deshabilitado");
+		//session.save(usuario);
+		String passHashed = "";
+		Usuario usuarioHashed = new Usuario();
+		
+		usuarioHashed = (Usuario) session.createCriteria(Usuario.class)
+				.add(Restrictions.eq("email", usuario.getEmail()))
+				.uniqueResult();
+		
+				
+		//GENERO Y GUARDO EL SALT DEL USUARIO	
+		byte[] saltBytes = SaltHashedPassword.getNextSalt();
+		String salt = SaltHashedPassword.convertirSalt(saltBytes);
+		
+		//Busco saltUsuario
+		SaltUsuario saltUsuario = (SaltUsuario) session.createCriteria(SaltUsuario.class)
+				.add(Restrictions.eq("idUsuario", usuarioHashed.getId()))
+				.uniqueResult();
+						
+		saltUsuario.setSalt(salt);		
+		session.update(saltUsuario);
+		
+		//Comienzo la creacion del password Salt Hashed
+		try {
+			passHashed = SaltHashedPassword.generarHash(usuarioHashed,saltBytes);
+		} catch (UnsupportedEncodingException e) {		
+			e.printStackTrace();
+		}
+		
+		usuarioHashed.setPassword(passHashed);				
+		session.update(usuarioHashed);
+		/////////////////////////////////////////////////////////
+		
+		
+		System.out.println("saveNewPassword");
+		System.out.println("id recibido por parametro: "+id);
+		System.out.println("clave recibida por parametro: "+newPass1);
+		System.out.println("id de usuario encontrado por criteria: "+usuario.getId());
+		System.out.println("email de usuario encontrado por criteria: "+usuario.getEmail());
+		System.out.println("password de usuario encontrado por criteria: "+usuario.getPassword());
+		
+		Registro registro = new Registro();
+		registro.setIdUsuario(usuario.getId());
+		registro.setRegistro(usuario.getEmail()+" Modifico su Clave.");
+			
+		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		String fecha = dateFormat.format(new Date());
+		
+		registro.setFecha(fecha);
+		session.save(registro);							
+	}	
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
+
 }
+		
+

@@ -10,4 +10,6 @@ public interface ServicioLogin {
 	void crearUsuario(Usuario usuario);
 	Usuario recuperarPassConsulta(String email);
 	Usuario consultarUsuarioLogin(Usuario usuario);
+	void recuperarClave(Usuario usuario);
+	
 }

@@ -10,6 +10,7 @@ public class Autentificacion {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+	private Long idUsuario;
 	private String fecha;
 	private String email;
 	private String autentificador;
@@ -44,6 +45,14 @@ public class Autentificacion {
 	}
 	public void setEmail(String email) {
 		this.email = email;
+	}
+	
+	/////////////////////////////////////////
+	public Long getIdUsuario() {
+		return idUsuario;
+	}
+	public void setIdUsuario(Long idUsuario) {
+		this.idUsuario = idUsuario;
 	}
 	
 	

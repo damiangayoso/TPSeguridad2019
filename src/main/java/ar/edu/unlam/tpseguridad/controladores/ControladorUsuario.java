@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import ar.edu.unlam.tpseguridad.modelo.Autentificacion;
 import ar.edu.unlam.tpseguridad.modelo.ClaveDTO;
 import ar.edu.unlam.tpseguridad.modelo.Registro;
 import ar.edu.unlam.tpseguridad.modelo.TipoLog;
@@ -79,9 +80,9 @@ public class ControladorUsuario {
 
 		ModelMap modelo = new ModelMap();
 
-		ClaveDTO clave = new ClaveDTO();
-		
+		ClaveDTO clave = new ClaveDTO();		
 		modelo.put("clave", clave);
+		
 		log.registrarInfo(getClass(), tipo, "Usuario cambia de password");
 		return new ModelAndView("cambiarPassword", modelo);
 	}
@@ -108,6 +109,40 @@ public class ControladorUsuario {
 		return new ModelAndView("cambiarPassword", model);
 	}
 	
+////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	@RequestMapping(path = "/validar-setNewPassword", method = RequestMethod.POST)
+	public ModelAndView validarSetNewPassword(@ModelAttribute("clave") ClaveDTO clave, HttpServletRequest request) {
+		ModelMap model = new ModelMap();
+		System.out.println(clave.getEmail());		
+		boolean clavesIguales = servicioUsuario.validarSetNewPassword(clave.getNewPass1(), clave.getNewPass2());		
+		
+		if(!clavesIguales){
+			model.put("error", "Las claves ingresadas no coinciden");
+			return new ModelAndView("setNewPassword", model);
+		}
+		
+		if(!servicioValidacionV2.passwordVerificar(clave.getNewPass1())) {
+			model.put("error", "Contraseña solo puede contener [a-z A-Z 0-9].");
+			return new ModelAndView("setNewPassword", model);
+		}
+				
+		if(clavesIguales) {
+			log.registrarInfo(getClass(), tipo, "Usuario cambia la clave");
+			//Guarda la clave nueva
+			servicioUsuario.saveNewPassword(clave.getId(), clave.getEmail(), clave.getNewPass1());
+			return new ModelAndView("home", model);
+		}
+		else {
+			log.registrarInfo(getClass(), tipo, "Ingrese una clave distinta a las ingresadas anteriormente");		
+			model.put("error", "Ingrese una clave distinta a las ingresadas anteriormente");
+			return new ModelAndView("setNewPassword", model);
+		}
+		
+	}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	@RequestMapping("/verHistorialUsuario")
 	public ModelAndView verHistorialUsuario(HttpServletRequest request) {
 
@@ -122,12 +157,12 @@ public class ControladorUsuario {
 	
 	@RequestMapping("/verUsuarios")
 	public ModelAndView verUsuarios(HttpServletRequest request) {
-
 		ModelMap modelo = new ModelMap();
 		Long id = (Long) request.getSession().getAttribute("ID");
 		
 		List<Usuario> listaUsuarios = servicioUsuario.obtenerUsuarios();
 		modelo.put("Lista", listaUsuarios);
+		
 		log.registrarInfo(getClass(), tipo, "Ver usuarios");
 		return new ModelAndView("verUsuarios", modelo);
 	}
@@ -216,4 +251,54 @@ public class ControladorUsuario {
 		}
 
 	}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+	@RequestMapping(path="/autentificarSetNewPassword/{auth}", method = RequestMethod.GET)
+	public ModelAndView autentificarSetNewPassword(@PathVariable String auth,HttpServletRequest request, RedirectAttributes redirectAtt) {
+		ModelMap modelo = new ModelMap();	
+		ClaveDTO nuevaClave = new ClaveDTO();		
+	
+		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+		String fecha = dateFormat.format(new Date());
+
+		Autentificacion resultado = servicioUsuario.autentificarSetNewPassword(auth,fecha);
+		nuevaClave.setId(resultado.getIdUsuario()); 
+
+		if(resultado!=null) {						
+			redirectAtt.addFlashAttribute("nuevaClave",nuevaClave);
+			modelo.put("clave", nuevaClave);			
+			
+			log.registrarInfo(getClass(), tipo, "Link de recuperacion de clave valido");
+			return new ModelAndView("redirect:/setNewPassword");			
+		}else {
+			modelo.put("clave", nuevaClave);	
+			
+			log.registrarInfo(getClass(), tipo, "Autentificacion de link de recuperacion de clave fallida");
+			return new ModelAndView("/error", modelo);
+		}
+
+/*		
+		if(!resultado.equals("Invalid")) {
+			nuevaClave.setEmail(resultado);			
+			
+			redirectAtt.addFlashAttribute("nuevaClave",nuevaClave);
+			modelo.put("clave", nuevaClave);			
+			
+			log.registrarInfo(getClass(), tipo, "Link de recuperacion de clave valido");
+			return new ModelAndView("redirect:/setNewPassword");			
+		}else {
+			log.registrarInfo(getClass(), tipo, "Autentificacion de link de recuperacion de clave fallida");
+			return new ModelAndView("/error", modelo);
+		}
+*/
+	}
+
+	@RequestMapping(path = "/setNewPassword")
+	public ModelAndView setNewPassword(HttpServletRequest request,@ModelAttribute("nuevaClave") ClaveDTO nuevaClave) {
+		ModelMap modelo = new ModelMap();		
+		modelo.put("clave", nuevaClave);
+		return new ModelAndView("/setNewPassword", modelo);
+	}
+	
 }

@@ -1,6 +1,7 @@
 package ar.edu.unlam.tpseguridad.controladores;
 
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 
 import ar.edu.unlam.tpseguridad.dao.VerifyRecaptchaImpl;
+import ar.edu.unlam.tpseguridad.modelo.ClaveDTO;
 import ar.edu.unlam.tpseguridad.modelo.TipoLog;
 import ar.edu.unlam.tpseguridad.modelo.Usuario;
 import ar.edu.unlam.tpseguridad.modelo.UsuarioDTO;
@@ -29,7 +31,6 @@ public class ControladorLogin {
 	UtilesLog log = new UtilesLog();
 	//enum
 	TipoLog tipo = TipoLog.INFO;			
-
 	
 	@Inject
 	private ServicioLogin servicioLogin;
@@ -178,7 +179,7 @@ public class ControladorLogin {
 		Usuario usuarioR = new Usuario();
 		
 		if(usuario.getEmail().equals("")) {
-			model.put("error", "Usuario esta Vacios.");
+			model.put("error", "Ingrese su email");
 			return new ModelAndView("recuperarPassword", model);
 		}
 		
@@ -211,11 +212,14 @@ public class ControladorLogin {
 			
 			model.put("clave", usuarioBuscado.getPassword());
 			model.put("usuario", usuarioLogin);
-			log.registrarInfo(getClass(), tipo, "Recuperacion exitosa");
-			return new ModelAndView("login",model);
+			
+			log.registrarInfo(getClass(), tipo, "Recuperacion exitosa");			
+			//return new ModelAndView("login",model);
+			servicioLogin.recuperarClave(usuario);
+			return new ModelAndView("redirect:/login");
 		} else {
-			log.registrarInfo(getClass(), tipo, "La respuesta no coincide");
-			model.put("error", "La Respuesta no coincide.");
+			log.registrarInfo(getClass(), tipo, "La respuesta no es correcta");
+			model.put("error", "La Respuesta no es correcta.");
 		}
 		
 		usuarioR.setPregunta(usuarioBuscado.getPregunta());
@@ -236,4 +240,6 @@ public class ControladorLogin {
 		return new ModelAndView("redirect:/login");
 
 	}
+				
 }
+

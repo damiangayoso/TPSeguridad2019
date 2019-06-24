@@ -10,7 +10,7 @@
 	    <!-- Bootstrap theme -->
 	    <link href="css/bootstrap-theme.min.css" rel="stylesheet">
 	    <link rel="stylesheet" href="css/estilos.css">
-	</head>
+</head>
 <body>
 <header class="header container">
 			<h1 class="logo">TP Seguridad</h1>
